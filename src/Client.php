@@ -5,6 +5,7 @@ namespace Atimrots\AuditLog;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\GuzzleException;
 use Exception;
+use Illuminate\Support\Facades\Cache;
 use JsonException;
 
 class Client
@@ -13,13 +14,15 @@ class Client
 	private HttpClient $client;
 	public bool $error;
 	private array $config;
+	private int $ttl;
+	private int $retries = 0;
 
 	/**
 	 * @throws GuzzleException
 	 * @throws JsonException
 	 */
 	public function __construct() {
-		$this->config = config('services.log');
+		$this->config = config('auditlog.api');
 
 		$this->error = !$this->config['url'] || !$this->config['username'] || !$this->config['password'];
 
@@ -28,6 +31,7 @@ class Client
 		}
 
 		$this->base_url = $this->config['url'];
+		$this->ttl = (int)$this->config['session_time'];
 
 		$this->client = new HttpClient([
 			'headers' => $this->headers(),
@@ -55,11 +59,12 @@ class Client
 		try {
 			$response = $this->client->request($method, $url, $options);
 		} catch (Exception $e) {
-			//if ($e->getCode() === 403 && str_contains($e->getMessage(), 'Invalid token or expired token')) {
-			//	$this->requestJwtToken();
-			//
-			//	return $this->makeRequest($method, $path, $data);
-			//}
+			if ($e->getCode() === 403 && str_contains($e->getMessage(), 'Invalid token or expired token') && $this->retries < 3) {
+				$this->refreshJwtToken();
+				$this->retries++;
+
+				return $this->retryRequest($method, $path, $data);
+			}
 
 			if (method_exists($e, 'getResponse')) {
 				$response = $e->getResponse();
@@ -87,6 +92,21 @@ class Client
 	}
 
 	/**
+	 * @param string $method
+	 * @param string $path
+	 * @param array $data
+	 *
+	 * @return null[]
+	 * @throws GuzzleException
+	 * @throws JsonException
+	 */
+	private function retryRequest(string $method, string $path, array $data = []): array {
+		$client =  new Client();
+
+		return $client->makeRequest($method, $path, $data);
+	}
+
+	/**
 	 * @return string[]
 	 * @throws GuzzleException
 	 * @throws JsonException
@@ -106,10 +126,10 @@ class Client
 	 * @throws JsonException
 	 */
 	private function getToken(): string {
-		$token = session('log_api_access_token');
+		$token = Cache::get('audit_log_api_token');
 
 		if (!$token) {
-			$token = $this->requestJwtToken();
+			$token = $this->refreshJwtToken();
 		}
 
 		return $token ?? '';
@@ -120,8 +140,8 @@ class Client
 	 * @throws GuzzleException
 	 * @throws JsonException
 	 */
-	private function requestJwtToken(): string|null {
-		$client = new Client([
+	private function refreshJwtToken(): string|null {
+		$client = new HttpClient([
 			'headers' => [
 				'Accept' => 'application/json',
 				'Content-Type' => 'application/json',
@@ -140,11 +160,11 @@ class Client
 		if ($response['access_token'] ?? null) {
 			$token = $response['access_token'];
 
-			session()->put('log_api_access_token', $token);
+			Cache::set('audit_log_api_token', $token, $this->ttl);
 
 			return $token;
 		} else {
-			// Log response to debug
+			// TODO: Log response to debug
 		}
 
 		return null;

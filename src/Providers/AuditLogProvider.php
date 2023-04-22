@@ -13,7 +13,7 @@ class AuditLogProvider extends ServiceProvider
 	 */
 	public function boot(): void {
 		$this->publishes([
-			__DIR__.'/config/auditlog.php' => config_path('auditlog.php'),
+			__DIR__.'/../config/auditlog.php' => config_path('auditlog.php'),
 		],'config');
 	}
 }
