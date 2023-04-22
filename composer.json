@@ -1,0 +1,19 @@
+{
+    "name": "atimrots/audit-log",
+    "description": "Audit log API client",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Atimrots\\AuditLog\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Arturs T",
+            "email": "arturs.timrots@gmail.com"
+        }
+    ],
+    "require": {
+        "guzzlehttp/guzzle": "^7.5"
+    }
+}
