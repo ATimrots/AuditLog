@@ -56,6 +56,12 @@ class Client
 		$response = null;
 		$exception = null;
 
+		$final_response = [
+			'exception' => null,
+			'response' => null,
+			'original_exception' => null,
+		];
+
 		try {
 			$response = $this->client->request($method, $url, $options);
 		} catch (Exception $e) {
@@ -70,23 +76,24 @@ class Client
 				$response = $e->getResponse();
 			}
 
-			$exception = $e->getMessage();
+			$final_response['exception'] = class_basename($e);
+			$final_response['original_exception'] = $e->getMessage();
 		}
 
 		if ($response) {
 			$response_body = (string)$response->getBody();
 			try {
-				$final_response = json_decode($response_body, true, 512, JSON_THROW_ON_ERROR);
+				$final_response['response'] = json_decode($response_body, true, 512, JSON_THROW_ON_ERROR);
 			} catch (JsonException $e) {
 				$final_response = [
-					'exception' => 'Failed to parse JSON',
+					'exception' => class_basename($e),
 					'response' => $response_body,
 					'original_exception' => $e->getMessage(),
 				];
 			}
-		} else {
-			$final_response = ['exception' => $exception];
 		}
+
+		// TODO: If exception, store error log
 
 		return $final_response;
 	}
