@@ -59,7 +59,7 @@ class Client
 		try {
 			$response = $this->client->request($method, $url, $options);
 		} catch (Exception $e) {
-			if ($e->getCode() === 403 && str_contains($e->getMessage(), 'Invalid token or expired token') && $this->retries < 3) {
+			if ($this->retries < 3 && $e->getCode() === 403 && str_contains($e->getMessage(), 'Invalid token or expired token')) {
 				$this->refreshJwtToken();
 				$this->retries++;
 
@@ -101,9 +101,7 @@ class Client
 	 * @throws JsonException
 	 */
 	private function retryRequest(string $method, string $path, array $data = []): array {
-		$client =  new Client();
-
-		return $client->makeRequest($method, $path, $data);
+		return (new Client())->makeRequest($method, $path, $data);
 	}
 
 	/**
