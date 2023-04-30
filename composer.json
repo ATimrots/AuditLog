@@ -2,6 +2,7 @@
     "name": "atimrots/audit-log",
     "description": "Audit log API client",
     "type": "library",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Atimrots\\AuditLog\\": "src/"
